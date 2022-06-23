@@ -28,27 +28,28 @@ class Command(BaseCommand):
     def handle(self, *args, **options):
         input_file = options['filename']
         errors_in_data = []
-        try:
-            csv_file = open(os.path.join(DATA_ROOT, input_file),
-                            newline='', encoding='utf8')
-            file_content = csv.reader(csv_file)
-            csv_file.close()
-        except FileNotFoundError:
-            raise CommandError(
-                f'Файл {input_file} не найден в папке {DATA_ROOT}'
-            )
-
-        for row in file_content:
-            recipe_id, username = row
+        with open(
+            os.path.join(DATA_ROOT, input_file),
+            newline='',
+            encoding='utf8'
+        ) as csv_file:
             try:
-                user = User.objects.get(username=username)
-                recipe = Recipe.objects.get(id=recipe_id)
-                FavouriteRecipes.objects.create(
-                    fan_user=user,
-                    fav_recipe=recipe
+                file_content = csv.reader(csv_file)
+                for row in file_content:
+                    recipe_id, username = row
+                    try:
+                        user = User.objects.get(username=username)
+                        recipe = Recipe.objects.get(id=recipe_id)
+                        FavouriteRecipes.objects.create(
+                            fan_user=user,
+                            fav_recipe=recipe
+                        )
+                    except Exception:
+                        errors_in_data.append(', '.join(row))
+            except FileNotFoundError:
+                raise CommandError(
+                    f'Файл {input_file} не найден в папке {DATA_ROOT}'
                 )
-            except Exception:
-                errors_in_data.append(', '.join(row))
 
         if errors_in_data:
             output_file = os.path.join(DATA_ROOT, 'errors_favorite.txt')
