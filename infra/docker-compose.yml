@@ -10,7 +10,7 @@ services:
       - ./.env
 
   backend:
-    image: kostkh/foodgram-backend:latest
+    image: kostkh/foodgram-backend:v1.2022
     restart: always
     expose:
       - 8000
