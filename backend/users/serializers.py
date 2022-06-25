@@ -1,6 +1,6 @@
 from djoser.serializers import UserSerializer
-from rest_framework.serializers import (ModelSerializer, ReadOnlyField,
-                                        SerializerMethodField,
+from rest_framework.serializers import (IntegerField, ModelSerializer,
+                                        ReadOnlyField, SerializerMethodField,
                                         UniqueTogetherValidator,
                                         ValidationError)
 
@@ -46,7 +46,7 @@ class SubscriptionsSerializer(ModelSerializer):
     last_name = ReadOnlyField(source='author.last_name')
     is_subscribed = SerializerMethodField()
     recipes = SerializerMethodField()
-    recipes_count = SerializerMethodField()
+    recipes_count = IntegerField(source='author.recipes.count')
 
     class Meta:
         model = Subscriptions
@@ -70,15 +70,10 @@ class SubscriptionsSerializer(ModelSerializer):
             author=obj.author
         ).exists()
 
-    def get_recipes_count(self, obj):
-        author = obj.author
-        return Recipe.objects.filter(author=author).count()
-
     def get_recipes(self, obj):
         queryset = Recipe.objects.filter(author=obj.author)
         request = self.context.get('request')
         recipes_limit = request.query_params.get('recipes_limit')
-        print(type(queryset))
         try:
             if recipes_limit and int(recipes_limit) > 0:
                 queryset = queryset[:int(recipes_limit)]

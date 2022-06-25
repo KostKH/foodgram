@@ -4,6 +4,7 @@ from django.http import HttpResponse
 from django_filters.rest_framework import DjangoFilterBackend
 from rest_framework import status, viewsets
 from rest_framework.decorators import action
+from rest_framework.exceptions import ValidationError
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 
@@ -44,6 +45,39 @@ class RecipeViewSet(viewsets.ModelViewSet):
     def perform_create(self, serializer):
         serializer.save(author=self.request.user)
 
+    def get_recipe(self, pk):
+        try:
+            return Recipe.objects.get(pk=pk)
+
+        except Recipe.DoesNotExist:
+            raise ValidationError(
+                {'errors': 'Рецепта с таким номером не существует'}
+            )
+
+    def get_object_deleted(self, data, model):
+        try:
+            instance = model.objects.get(**data)
+
+        except Recipe.DoesNotExist:
+            raise ValidationError(
+                {'errors': 'Рецепта с таким номером не существует'}
+            )
+        except FavouriteRecipes.DoesNotExist:
+            raise ValidationError(
+                {'errors': 'Рецепт отсутствует в избранном'}
+            )
+        except ShopList.DoesNotExist:
+            raise ValidationError(
+                {'errors': 'Рецепт отсутствует в списке покупок'}
+            )
+        instance.delete()
+        return Response(status=status.HTTP_204_NO_CONTENT)
+
+    def get_object_posted(self, serializer):
+        serializer.is_valid(raise_exception=True)
+        serializer.save()
+        return Response(serializer.data, status=status.HTTP_201_CREATED)
+
     @action(
         methods=['post', 'delete'],
         detail=True,
@@ -56,46 +90,15 @@ class RecipeViewSet(viewsets.ModelViewSet):
                 'fan_user': request.user.id
             }
             serializer = s.FavouriteRecipeSerializer(data=data)
-            serializer.is_valid()
+            return self.get_object_posted(serializer=serializer)
 
-            if serializer.is_valid():
-                serializer.save()
-                return Response(
-                    serializer.data,
-                    status=status.HTTP_201_CREATED
-                )
-
-            return Response(
-                serializer.errors,
-                status=status.HTTP_400_BAD_REQUEST
-            )
-
-        elif request.method == 'DELETE':
-            try:
-                instance = FavouriteRecipes.objects.get(
-                    fan_user=request.user,
-                    fav_recipe=Recipe.objects.get(pk=pk)
-                )
-
-            except Recipe.DoesNotExist:
-                return Response(
-                    {'errors': 'Рецепта с таким номером не существует'},
-                    status=status.HTTP_400_BAD_REQUEST
-                )
-
-            except FavouriteRecipes.DoesNotExist:
-                return Response(
-                    {'errors': 'Рецепт отсутствует в избранном'},
-                    status=status.HTTP_400_BAD_REQUEST
-                )
-
-            instance.delete()
-            return Response(status=status.HTTP_204_NO_CONTENT)
-
-        return Response(
-            {'errors': 'метод не в списке разрешенных методов'},
-            status=status.HTTP_400_BAD_REQUEST
-        )
+        recipe = self.get_recipe(pk=pk)
+        data = {
+            'fan_user': request.user,
+            'fav_recipe': recipe
+        }
+        model = FavouriteRecipes
+        return self.get_object_deleted(data=data, model=model)
 
     @action(
         methods=['post', 'delete'],
@@ -109,45 +112,15 @@ class RecipeViewSet(viewsets.ModelViewSet):
                 'shopper': request.user.id
             }
             serializer = s.ShopListSerializer(data=data)
+            return self.get_object_posted(serializer=serializer)
 
-            if serializer.is_valid():
-                serializer.save()
-                return Response(
-                    serializer.data,
-                    status=status.HTTP_201_CREATED
-                )
-
-            return Response(
-                serializer.errors,
-                status=status.HTTP_400_BAD_REQUEST
-            )
-
-        elif request.method == 'DELETE':
-            try:
-                instance = ShopList.objects.get(
-                    shopper=request.user,
-                    recipe_to_shop=Recipe.objects.get(pk=pk)
-                )
-
-            except Recipe.DoesNotExist:
-                return Response(
-                    {'errors': 'Рецепта с таким номером не существует'},
-                    status=status.HTTP_400_BAD_REQUEST
-                )
-
-            except ShopList.DoesNotExist:
-                return Response(
-                    {'errors': 'Рецепт отсутствует в списке покупок'},
-                    status=status.HTTP_400_BAD_REQUEST
-                )
-
-            instance.delete()
-            return Response(status=status.HTTP_204_NO_CONTENT)
-
-        return Response(
-            {'errors': 'метод не в списке разрешенных методов'},
-            status=status.HTTP_400_BAD_REQUEST
-        )
+        recipe = self.get_recipe(pk=pk)
+        data = {
+            'shopper': request.user,
+            'recipe_to_shop': recipe
+        }
+        model = ShopList
+        return self.get_object_deleted(data=data, model=model)
 
     def convert_to_txt(self, shoplist):
         file_name = settings.SHOPLIST_FILE_NAME

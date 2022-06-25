@@ -3,7 +3,6 @@ from rest_framework import serializers as s
 from rest_framework.relations import SlugRelatedField
 
 from users.serializers import ModifiedUserSerializer
-
 from .models import (FavouriteRecipes, Ingredient, IngredientsForRecipe,
                      Recipe, ShopList, Tag)
 
@@ -133,36 +132,43 @@ class AddRecipeSerializer(s.ModelSerializer):
         ingredient_data = validated_data.pop('ingredients')
         recipe = Recipe.objects.create(**validated_data)
         recipe.tags.set(tags)
-        for item in ingredient_data:
-            ingredient = item['id']
-            amount = item['amount']
-            IngredientsForRecipe.objects.create(
-                recipe=recipe,
-                ingredient=ingredient,
-                amount=amount
-            )
+        IngredientsForRecipe.objects.bulk_create(
+            [
+                IngredientsForRecipe(
+                    recipe=recipe,
+                    ingredient=item['id'],
+                    amount=item['amount']
+                )
+                for item in ingredient_data
+            ]
+        )
         return recipe
 
     def update(self, instance, validated_data):
-        if validated_data.get('ingredients'):
-            ingredient_data = validated_data.pop('ingredients')
-            old_ingredients = (
-                IngredientsForRecipe.objects.filter(recipe=instance)
-            )
-            for item in old_ingredients:
-                item.delete()
-            for item in ingredient_data:
-                ingredient = item['id']
-                amount = item['amount']
-                IngredientsForRecipe.objects.create(
-                    recipe=instance,
-                    ingredient=ingredient,
-                    amount=amount
-                )
         if validated_data.get('tags'):
             tags = validated_data.pop('tags')
             instance.tags.clear()
             instance.tags.set(tags)
+
+        if not validated_data.get('ingredients'):
+            return super().update(instance, validated_data)
+
+        ingredient_data = validated_data.pop('ingredients')
+        old_ingredients = (
+            IngredientsForRecipe.objects.filter(recipe=instance)
+        )
+        for item in old_ingredients:
+            item.delete()
+        IngredientsForRecipe.objects.bulk_create(
+            [
+                IngredientsForRecipe(
+                    recipe=instance,
+                    ingredient=item['id'],
+                    amount=item['amount']
+                )
+                for item in ingredient_data
+            ]
+        )
         return super().update(instance, validated_data)
 
     def validate_cooking_time(self, value):
@@ -174,15 +180,15 @@ class AddRecipeSerializer(s.ModelSerializer):
 
     def validate(self, data):
         all_ingredients = data.get('ingredients')
+
         if all_ingredients is None:
             return data
-        unique_ids = []
-        for ingredient in all_ingredients:
-            if ingredient['id'] in unique_ids:
-                raise s.ValidationError(
-                    'Ингредиенты в рецепте не должны повторяться'
-                )
-            unique_ids.append(ingredient['id'])
+
+        unique_ids = set(item['id'] for item in all_ingredients)
+        if len(unique_ids) != len(all_ingredients):
+            raise s.ValidationError(
+                'Ингредиенты в рецепте не должны повторяться'
+            )
         return data
 
 
