@@ -25,6 +25,7 @@ INSTALLED_APPS = [
     'djoser',
     'users',
     'recipes',
+    'api',
 ]
 
 MIDDLEWARE = [
@@ -113,8 +114,7 @@ REST_FRAMEWORK = {
         'rest_framework.authentication.TokenAuthentication',
     ],
     'TEST_REQUEST_DEFAULT_FORMAT': 'json',
-    'DEFAULT_PAGINATION_CLASS': 'recipes.pagination.LimitPagination',
-    # лимит на случай, если пользователь API не задаст limit в запросе
+    'DEFAULT_PAGINATION_CLASS': 'api.pagination.LimitPagination',
     'PAGE_SIZE': 5,
     'NON_FIELD_ERRORS_KEY': 'errors'
 }
@@ -122,8 +122,8 @@ REST_FRAMEWORK = {
 DJOSER = {
     "LOGIN_FIELD": 'email',
     'SERIALIZERS': {
-        'user': 'users.serializers.ModifiedUserSerializer',
-        'current_user': 'users.serializers.ModifiedUserSerializer',
+        'user': 'api.serializers.ModifiedUserSerializer',
+        'current_user': 'api.serializers.ModifiedUserSerializer',
     },
     'PERMISSIONS': {
         'user': ['rest_framework.permissions.AllowAny'],

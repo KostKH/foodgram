@@ -1,19 +1,21 @@
-from django.conf import settings
 from django.db.models import Sum
-from django.http import HttpResponse
+from django.shortcuts import get_object_or_404
 from django_filters.rest_framework import DjangoFilterBackend
-from rest_framework import status, viewsets
+from rest_framework import permissions, status, viewsets
 from rest_framework.decorators import action
 from rest_framework.exceptions import ValidationError
+from rest_framework.generics import ListAPIView
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
+from rest_framework.views import APIView
 
-from recipes.filters import IngredientFilter, RecipeFilter
-from recipes.permissions import IsOwnerOrReadOnly
-
-from . import serializers as s
-from .models import (FavouriteRecipes, Ingredient, IngredientsForRecipe,
-                     Recipe, ShopList, Tag)
+from api import serializers as s
+from api.filters import IngredientFilter, RecipeFilter
+from api.permissions import IsOwnerOrReadOnly
+from api.utils import convert_to_txt
+from recipes.models import (FavouriteRecipes, Ingredient, IngredientsForRecipe,
+                            Recipe, ShopList, Tag)
+from users.models import Subscriptions, User
 
 
 class TagViewSet(viewsets.ReadOnlyModelViewSet):
@@ -122,21 +124,6 @@ class RecipeViewSet(viewsets.ModelViewSet):
         model = ShopList
         return self.get_object_deleted(data=data, model=model)
 
-    def convert_to_txt(self, shoplist):
-        file_name = settings.SHOPLIST_FILE_NAME
-        lines = []
-        for item in shoplist:
-            name = item['ingredient__name']
-            measurement_unit = item['ingredient__measurement_unit']
-            amount = item['ingredient_total']
-            lines.append(f'{name} - {amount} {measurement_unit}')
-        lines.append('\nПриятного аппетита! Ваш FoodGram')
-        content = '\n'.join(lines)
-        content_type = 'text/plain,charset=utf8'
-        response = HttpResponse(content, content_type=content_type)
-        response['Content-Disposition'] = f'attachment; filename={file_name}'
-        return response
-
     @action(
         methods=['get', ],
         detail=False,
@@ -150,4 +137,39 @@ class RecipeViewSet(viewsets.ModelViewSet):
         ).order_by(
             'ingredient__name'
         ).annotate(ingredient_total=Sum('amount'))
-        return self.convert_to_txt(shoplist)
+        return convert_to_txt(shoplist)
+
+
+class SubsriptionsView(ListAPIView):
+
+    serializer_class = s.SubscriptionsSerializer
+    permission_classes = (permissions.IsAuthenticated,)
+
+    def get_queryset(self):
+        user = self.request.user
+        return user.followed_authors.all().order_by('-id')
+
+
+class SubscribeView(APIView):
+    pagination_class = None
+    permission_classes = (permissions.IsAuthenticated,)
+
+    def post(self, request, id):
+        author = get_object_or_404(User, id=id)
+        user = self.request.user
+        data = {'user': user.id, 'author': author.id}
+        serializer = s.SubscribeSerializer(
+            data=data, context={'request': request}
+        )
+        serializer.is_valid(raise_exception=True)
+        serializer.save()
+        return Response(data=serializer.data, status=status.HTTP_201_CREATED)
+
+    def delete(self, request, id):
+        author = get_object_or_404(User, id=id)
+        user = self.request.user
+        subscription = get_object_or_404(
+            Subscriptions, user=user, author=author
+        )
+        subscription.delete()
+        return Response(status=status.HTTP_204_NO_CONTENT)
