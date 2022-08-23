@@ -37,6 +37,8 @@ cd foodgram-project-react
 ```
 - Проверить, что свободны порты, необходимые для работы приложения: порт 8000 (требуется для работы приложения) и порт 5432 (требуется для работы  Postgres)
 
+- Проверить, что на сервере установлены docker и docker-compose 
+
 - Cоздать и открыть файл .env с переменными окружения:
 ```
 cd infra
@@ -58,9 +60,9 @@ docker-compose up -d
 ```
 - Запустить миграции, создать суперюзера, собрать статику и заполнить БД:
 ```
-docker-compose exec web python manage.py migrate
-docker-compose exec web python manage.py createsuperuser
-docker-compose exec web python manage.py collectstatic --no-input
+docker-compose exec backend python manage.py migrate
+docker-compose exec backend python manage.py createsuperuser
+docker-compose exec backend python manage.py collectstatic --no-input
 ```
 
 ## Документация по API
@@ -108,4 +110,5 @@ docker-compose exec web python manage.py collectstatic --no-input
 
 Лицензия: BSD 3-Clause License
 
-Автор: Константин Харьков
+Автор: Константин Харьков (в части бэкенда)
+В части фронтенда авторы - команда Яндекс Практикум
