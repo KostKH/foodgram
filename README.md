@@ -1,18 +1,9 @@
-# praktikum_new_diplom
-
-### Данные для проверки проекта
-
-IP-адрес сервера: 130.193.53.57
-
-#### Данные для входа в админ-зону:
-email: kostya@user.user
-пароль: Kostya.123
-
-# О проекте:
+# Foodgram
+![yamdb_workflow](https://github.com/KostKH/foodgram-project-react/actions/workflows/foodgram_workflow.yml/badge.svg)
 
 API для проекта Foodgram - проекта соц.сети, в котором пользователи могут размещать свои рецепты, смотреть рецепты других пользователей, подписываться на пользователей и добавлть понравившиеся рецепты в избранное. 
 
-API позволяет: 
+API позволяет:
 - зарегистрировать пользователя;
 - просматриваать списки ингредиентов и тегов;
 - получать, размещать изменять и удалять рецепты;
@@ -116,3 +107,5 @@ docker-compose exec web python manage.py collectstatic --no-input
 ## О программе:
 
 Лицензия: BSD 3-Clause License
+
+Автор: Константин Харьков
